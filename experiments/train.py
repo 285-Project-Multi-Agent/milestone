@@ -91,9 +91,9 @@ def train(arglist):
         # Load previous results, if necessary
         if arglist.load_dir == "":
             arglist.load_dir = arglist.save_dir
-        if arglist.display or arglist.restore or arglist.benchmark:
-            print('Loading previous state...')
-            U.load_state(arglist.load_dir)
+        # if arglist.display or arglist.restore or arglist.benchmark:
+        #     print('Loading previous state...')
+        #     U.load_state(arglist.load_dir)
 
         episode_rewards = [0.0]  # sum of rewards for all agents
         agent_rewards = [[0.0] for _ in range(env.n)]  # individual agent reward
@@ -162,7 +162,7 @@ def train(arglist):
 
             # save model, display training output
             if terminal and (len(episode_rewards) % arglist.save_rate == 0):
-                U.save_state(arglist.save_dir, saver=saver)
+                U.save_state(arglist.save_dir + "\\{}\\".format(arglist.exp_name), saver=saver)
                 # print statement depends on whether or not there are adversaries
                 if num_adversaries == 0:
                     print("steps: {}, episodes: {}, mean episode reward: {}, time: {}".format(

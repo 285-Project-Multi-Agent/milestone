@@ -34,6 +34,10 @@ def parse_args():
     parser.add_argument("--benchmark-iters", type=int, default=100000, help="number of iterations run for benchmarking")
     parser.add_argument("--benchmark-dir", type=str, default="./benchmark_files/", help="directory where benchmark data is saved")
     parser.add_argument("--plots-dir", type=str, default="./learning_curves/", help="directory where plot data is saved")
+    
+    parser.add_argument("--multigrid", action="store_true", default=False)
+    parser.add_argument("--save_display", action="store_true", default=False)
+    
     return parser.parse_args()
 
 def mlp_model(input, num_outputs, scope, reuse=False, num_units=64, rnn_cell=None):
@@ -46,19 +50,53 @@ def mlp_model(input, num_outputs, scope, reuse=False, num_units=64, rnn_cell=Non
         return out
 
 def make_env(scenario_name, arglist, benchmark=False):
-    from multiagent.environment import MultiAgentEnv
-    import multiagent.scenarios as scenarios
+    if arglist.multigrid:
+        # # import gym_multigrid
+        # import gym
+        # from gym.envs.registration import register
+        # register(
+        #     id='multigrid-collect-v0',
+        #     entry_point='gym_multigrid.envs:CollectGame4HEnv10x10N2',
+        # )
+        # env = gym.make('multigrid-collect-v0')
 
-    # load scenario from script
-    scenario = scenarios.load(scenario_name + ".py").Scenario()
-    # create world
-    world = scenario.make_world()
-    # create multiagent environment
-    if benchmark:
-        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data)
+        # _ = env.reset()
+        # return env
+        import gym
+        import ma_gym
+        from ma_gym.wrappers import Monitor
+        
+        gym.envs.register(
+            id='MyPredatorPrey5x5-v0',
+            entry_point='ma_gym.envs.predator_prey:PredatorPrey',
+            kwargs={'grid_shape': (10, 10), 'n_agents': 4, 'n_preys': 3} 
+        )
+        env = gym.make('MyPredatorPrey5x5-v0')
+        if arglist.save_display:
+            env = Monitor(env, directory='recordings/{}'.format(arglist.exp_name), video_callable=lambda episode_id: episode_id%100==0)
+        env.n = env.n_agents
+        return env
+
     else:
-        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation)
-    return env
+        from multiagent.environment import MultiAgentEnv
+        import multiagent.scenarios as scenarios
+
+        # load scenario from script
+        scenario = scenarios.load(scenario_name + ".py").Scenario()
+        # create world
+        world = scenario.make_world()
+        # create multiagent environment
+        if benchmark:
+            env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data)
+        else:
+            env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation)
+        
+        if arglist.save_display:
+            import ma_gym
+            from ma_gym.wrappers import Monitor
+            env.n_agents = env.n
+            env = Monitor(env, directory='recordings/{}'.format(arglist.exp_name), video_callable=lambda episode_id: episode_id%100==0)
+        return env
 
 def get_trainers(env, num_adversaries, obs_shape_n, arglist):
     trainers = []
@@ -162,7 +200,7 @@ def train(arglist):
 
             # save model, display training output
             if terminal and (len(episode_rewards) % arglist.save_rate == 0):
-                U.save_state(arglist.save_dir + "\\{}\\".format(arglist.exp_name), saver=saver)
+                U.save_state(arglist.save_dir + "/{}/".format(arglist.exp_name), saver=saver)
                 # print statement depends on whether or not there are adversaries
                 if num_adversaries == 0:
                     print("steps: {}, episodes: {}, mean episode reward: {}, time: {}".format(

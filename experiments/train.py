@@ -68,7 +68,7 @@ def make_env(scenario_name, arglist, benchmark=False):
         
         gym.envs.register(
             id='MyPredatorPrey5x5-v0',
-            entry_point='ma_gym.envs.predator_prey:PredatorPrey',
+            entry_point='ma_gym.envs.among_us:AmongUs',
             kwargs={'grid_shape': (10, 10), 'n_agents': 4, 'n_preys': 3} 
         )
         env = gym.make('MyPredatorPrey5x5-v0')

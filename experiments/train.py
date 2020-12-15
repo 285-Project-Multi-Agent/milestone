@@ -37,6 +37,8 @@ def parse_args():
     
     parser.add_argument("--multigrid", action="store_true", default=False)
     parser.add_argument("--save_display", action="store_true", default=False)
+    parser.add_argument("--custom", '-c', action="store_true", default=False)
+    parser.add_argument("--snum", type=int, default=0)
     
     return parser.parse_args()
 
@@ -51,29 +53,29 @@ def mlp_model(input, num_outputs, scope, reuse=False, num_units=64, rnn_cell=Non
 
 def make_env(scenario_name, arglist, benchmark=False):
     if arglist.multigrid:
-        # # import gym_multigrid
-        # import gym
-        # from gym.envs.registration import register
-        # register(
-        #     id='multigrid-collect-v0',
-        #     entry_point='gym_multigrid.envs:CollectGame4HEnv10x10N2',
-        # )
-        # env = gym.make('multigrid-collect-v0')
-
-        # _ = env.reset()
-        # return env
         import gym
         import ma_gym
         from ma_gym.wrappers import Monitor
         
-        gym.envs.register(
-            id='MyPredatorPrey5x5-v0',
-            entry_point='ma_gym.envs.among_us:AmongUs',
-            kwargs={'grid_shape': (10, 10), 'n_agents': 4, 'n_preys': 3} 
-        )
-        env = gym.make('MyPredatorPrey5x5-v0')
+        if not arglist.custom:
+            env = gym.make('AmongUs-v{}'.format(arglist.snum))
+        else:
+            gym.envs.register(
+                id='MyAmongUs-v0',
+                entry_point='ma_gym.envs.among_us:AmongUs',
+                kwargs={'scenario': arglist.snum, 'n_imposter': arglist.num_adversaries, 'max_steps': arglist.max_episode_len} 
+            )
+            env = gym.make('MyAmongUs-v0')
+
+        # gym.envs.register(
+        #     id='MyPredatorPrey5x5-v0',
+        #     entry_point='ma_gym.envs.among_us:AmongUs',
+        #     kwargs={'grid_shape': (10, 10), 'n_agents': 4, 'n_preys': 3} 
+        # )
+        # env = gym.make('MyPredatorPrey5x5-v0')
+
         if arglist.save_display:
-            env = Monitor(env, directory='recordings/{}'.format(arglist.exp_name), video_callable=lambda episode_id: episode_id%100==0)
+            env = Monitor(env, directory='recordings/{}'.format(arglist.exp_name), video_callable=lambda episode_id: (episode_id + 1)% arglist.save_rate == 0, force=True)
         env.n = env.n_agents
         return env
 

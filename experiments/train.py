@@ -40,6 +40,9 @@ def parse_args():
     parser.add_argument("--custom", '-c', action="store_true", default=False)
     parser.add_argument("--snum", type=int, default=0)
     
+    parser.add_argument("--persistent_kill", action="store_true", default=False)
+    parser.add_argument("--persistent_task", action="store_true", default=False)
+
     return parser.parse_args()
 
 def mlp_model(input, num_outputs, scope, reuse=False, num_units=64, rnn_cell=None):
@@ -63,7 +66,9 @@ def make_env(scenario_name, arglist, benchmark=False):
             gym.envs.register(
                 id='MyAmongUs-v0',
                 entry_point='ma_gym.envs.among_us:AmongUs',
-                kwargs={'scenario': arglist.snum, 'n_imposter': arglist.num_adversaries, 'max_steps': arglist.max_episode_len} 
+                kwargs={'scenario': arglist.snum, 'n_imposter': arglist.num_adversaries, 'max_steps': arglist.max_episode_len, 
+                        'persistent_kill': arglist.persistent_kill, 'persistent_task': arglist.persistent_task
+                } 
             )
             env = gym.make('MyAmongUs-v0')
 
@@ -139,6 +144,8 @@ def train(arglist):
         agent_rewards = [[0.0] for _ in range(env.n)]  # individual agent reward
         final_ep_rewards = []  # sum of rewards for training curve
         final_ep_ag_rewards = []  # agent rewards for training curve
+        steps_rewards = []
+        time_rewards = []
         agent_info = [[[]]]  # placeholder for benchmarking info
         saver = tf.train.Saver()
         obs_n = env.reset()
@@ -211,6 +218,8 @@ def train(arglist):
                     print("steps: {}, episodes: {}, mean episode reward: {}, agent episode reward: {}, time: {}".format(
                         train_step, len(episode_rewards), np.mean(episode_rewards[-arglist.save_rate:]),
                         [np.mean(rew[-arglist.save_rate:]) for rew in agent_rewards], round(time.time()-t_start, 3)))
+                steps_rewards.append(train_step)
+                time_rewards.append(round(time.time()-t_start, 3))
                 t_start = time.time()
                 # Keep track of final episode reward
                 final_ep_rewards.append(np.mean(episode_rewards[-arglist.save_rate:]))
@@ -225,6 +234,12 @@ def train(arglist):
                 agrew_file_name = arglist.plots_dir + arglist.exp_name + '_agrewards.pkl'
                 with open(agrew_file_name, 'wb') as fp:
                     pickle.dump(final_ep_ag_rewards, fp)
+                steps_file_name = arglist.plots_dir + arglist.exp_name + '_steps.pkl'
+                with open(steps_file_name, 'wb') as fp:
+                    pickle.dump(steps_rewards, fp)
+                times_file_name = arglist.plots_dir + arglist.exp_name + '_time.pkl'
+                with open(times_file_name, 'wb') as fp:
+                    pickle.dump(time_rewards, fp)
                 print('...Finished total of {} episodes.'.format(len(episode_rewards)))
                 break
 
